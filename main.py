@@ -57,13 +57,9 @@ async def grant_role(payload):
         return
 
     # MemberとRoleを取得して役職を付与
-    member = payload.member
-    '''
-    role = guild.id.get_role(POSITION_CLEE)
-    await member.add_roles(role)
-    '''
-    await payload.member.add_roles(payload.member.guild.get_role(POSITION_CLEE))
-    print("aa")
+    member = payload.member # Member情報を取得
+    role = member.guild.get_role(POSITION_CLEE) # 付与するRoleをID指定で取得
+    await member.add_roles(role) # 付与
     return member
 
 # リアクション追加時に実行されるイベントハンドラを定義
