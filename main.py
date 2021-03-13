@@ -13,27 +13,22 @@ POSITION_CLEE = setting.POSITION_CLEE
 # 対応した絵文字
 EMOJI_CLEE = 'EMOJI_CLEE'
 
+# 絵文字配列
+EMOJI_LIST = ['EMOJI_CLEE']
 
-bot = commands.Bot(command_prefix="$")
+
+####################
 # 接続に必要なオブジェクトを生成
-client = discord.Client()
-
-# 起動時に動作する処理
-@client.event
-async def on_ready():
-    print('Logged in as')
-    print(client.user.name)
-    print(client.user.id)
-    print('------')
+####################
+Intents = discord.Intents.default()
+Intents.members = True
+presence = discord.Game("エヴァンゲリオン") # プレイ中
+client = discord.Client(intents=Intents, activity=presence)
 
 
-
-# 返信する非同期関数を定義
-async def reply(message):
-    reply = f'{message.author.mention} Thanks message!' # 返信メッセージの作成
-    await message.channel.send(reply) # 返信メッセージを送信
-
-
+##########
+# 起動時
+##########
 # 任意のチャンネルで挨拶する非同期関数を定義
 async def greet():
     channel = client.get_channel(CHANNEL_ID)
@@ -42,36 +37,76 @@ async def greet():
 # bot起動時に実行されるイベントハンドラを定義
 @client.event
 async def on_ready():
+    print('Logged in as')
+    print('name:{}'.format(client.user.name))
+    print('user_id:{}'.format(client.user.id))
+    print('------')
     await greet() # 挨拶する非同期関数を実行
 
 
+##############
+# リアクションと役職
+##############
 # 役職を付与する非同期関数を定義
 async def grant_role(payload):
-
     # 絵文字が異なる場合は処理終了
-    if payload.emoji.name != EMOJI_CLEE:
+    if not payload.emoji.name in EMOJI_LIST:
         return
-
     # チャンネルが異なる場合は処理を終了
     if payload.channel_id != CHANNEL_ID:
         return
 
-    # MemberとRoleを取得して役職を付与
-    member = payload.member # Member情報を取得
-    role = member.guild.get_role(POSITION_CLEE) # 付与するRoleをID指定で取得
-    await member.add_roles(role) # 付与
-    return member
+    # 指定の絵文字の場合
+    if payload.emoji.name == EMOJI_CLEE:
+        # MemberとRoleを取得して役職を付与
+        member = payload.member # Member情報を取得
+        role = member.guild.get_role(POSITION_CLEE) # 付与するRoleをID指定で取得
+        await member.add_roles(role) # 付与
+    return member, role
+
+# 役職を剥奪する非同期関数を定義
+async def deprived_role(payload):
+    # 絵文字が異なる場合は処理終了
+    if not payload.emoji.name in EMOJI_LIST:
+        return
+    # チャンネルが異なる場合は処理を終了
+    if payload.channel_id != CHANNEL_ID:
+        return
+
+    # 指定の絵文字の場合
+    if payload.emoji.name == EMOJI_CLEE:
+        guild = client.get_guild(payload.guild_id)
+        member = guild.get_member(payload.user_id) # メンバー名を取得
+        print(member)
+        role = member.guild.get_role(POSITION_CLEE) # 剥奪するRoleをID指定で取得
+        await member.remove_roles(role) # 剥奪
+    return member, role
 
 # リアクション追加時に実行されるイベントハンドラを定義
 @client.event
 async def on_raw_reaction_add(payload):
     # 役職を付与する非同期関数を実行して Optional[Member] オブジェクトを取得
-    member = await grant_role(payload)
+    member, role = await grant_role(payload)
     if member is not None: # 役職を付与したメンバーがいる時
-        text = f'{member.mention} ようこそ！'
+        text = f'{member.mention} 役職自動付与：{role}'
         await client.get_channel(CHANNEL_ID).send(text)
 
+'''
+# リアクション解除時に実行されるイベントハンドラを定義
+@client.event
+async def on_raw_reaction_remove(payload):
+    print(payload)
+    # 役職を剥奪する非同期関数を実行して Optional[Member] オブジェクトを取得
+    member, role = await deprived_role(payload)
+    if member is not None: # 役職を剥奪したメンバーがいる時
+        text = f'{member.mention} 役職自動剥奪：{role}'
+        await client.get_channel(CHANNEL_ID).send(text)
+'''
 
+
+####################
+# メッセージに対するアクション
+####################
 # コマンドに対応するリストデータを取得する関数を定義
 def get_data(message):
     print("{}".format(message))
@@ -85,11 +120,16 @@ def get_data(message):
     }
     return data_table.get(command, '無効なコマンドです')
 
+# 返信する非同期関数を定義
+async def reply(message):
+    reply = f'{message.author.mention} Thanks message!' # 返信メッセージの作成
+    await message.channel.send(reply) # 返信メッセージを送信
 
-
-### Mode
+##############
+### Mode #######
 ### 1 : Google検索
-mode_flag = 0
+##############
+mode_flag = 0 # モードフラグ
 
 # メッセージ受信時に動作する処理
 @client.event
@@ -131,6 +171,7 @@ async def on_message(message):
     if message.content == '/google':
         mode_flag = 1
         await message.channel.send('検索ワードを入力してね！')
+
 
 
 # Botの起動とDiscordサーバーへの接続
